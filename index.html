@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Monzo Canada Pitch Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,800&family=Instrument+Sans:wght@400;500&family=JetBrains+Mono:wght@400&display=swap">
+<style>
+:root{--coral:#FF4F40;--ink:#0F2536;--ink-2:#3D5163;--ground:#FBF8F4;--card:#FFF;--rule:#E8E2DB;--err:#C2331F}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--coral:#FF6A5C;--ink:#F2EDE7;--ink-2:#B9C4CD;--ground:#0C1A24;--card:#12232F;--rule:#223543;--err:#FF7A66}}
+:root[data-theme="dark"]{--coral:#FF6A5C;--ink:#F2EDE7;--ink-2:#B9C4CD;--ground:#0C1A24;--card:#12232F;--rule:#223543;--err:#FF7A66}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:'Instrument Sans',-apple-system,Helvetica,Arial,sans-serif;display:grid;place-items:center;padding:24px}
+.gate{width:100%;max-width:420px}
+.mark{width:34px;height:34px;border-radius:9px;background:var(--coral);margin-bottom:22px}
+h1{font-family:'Bricolage Grotesque',Helvetica,Arial,sans-serif;font-weight:800;font-size:2rem;letter-spacing:-.025em;line-height:1.08;margin:0 0 8px}
+p.sub{color:var(--ink-2);margin:0 0 26px;font-size:.96rem;line-height:1.55}
+label{display:block;font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin-bottom:7px}
+.row{display:flex;gap:8px}
+input{flex:1;min-width:0;font:inherit;padding:11px 13px;border:1px solid var(--rule);border-radius:7px;background:var(--card);color:var(--ink)}
+input:focus{outline:2px solid var(--coral);outline-offset:1px;border-color:transparent}
+button{font:inherit;font-weight:600;padding:11px 20px;border:0;border-radius:7px;background:var(--coral);color:#fff;cursor:pointer;white-space:nowrap}
+button:disabled{opacity:.55;cursor:progress}
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.msg{margin-top:14px;font-size:.9rem;min-height:1.3em;color:var(--ink-2)}
+.msg.bad{color:var(--err)}
+.foot{margin-top:30px;padding-top:18px;border-top:1px solid var(--rule);font-size:.8rem;color:var(--ink-2);line-height:1.6}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main class="gate">
+  <div class="mark" aria-hidden="true"></div>
+  <h1>Monzo Canada pitch guide</h1>
+  <p class="sub">Group material for MS70087E. Enter the group password to read it.</p>
+  <form id="f" autocomplete="off">
+    <label for="pw">Password</label>
+    <div class="row">
+      <input id="pw" type="password" autocomplete="current-password" autofocus>
+      <button id="go" type="submit">Open</button>
+    </div>
+    <p class="msg" id="m" role="status" aria-live="polite"></p>
+  </form>
+  <p class="foot">The page contents are encrypted. Decryption happens in your browser and takes a second or two on first load.</p>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+$("f").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const pw=$("pw").value, m=$("m"), go=$("go");
+  if(!pw){m.textContent="Enter the password.";m.className="msg bad";return;}
+  m.className="msg"; m.textContent="Decrypting…"; go.disabled=true;
+  try{
+    const p = await (await fetch("payload.json",{cache:"no-store"})).json();
+    const b = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+    const key = await crypto.subtle.deriveKey(
+      {name:"PBKDF2", salt:b(p.salt), iterations:p.iter, hash:"SHA-256"},
+      base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+    const buf = await crypto.subtle.decrypt({name:"AES-GCM", iv:b(p.iv)}, key, b(p.ct));
+    const html = new TextDecoder().decode(buf);
+    sessionStorage.setItem("unlocked","1");
+    document.open(); document.write("<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"+html.slice(0, html.indexOf("</style>")+8)+"</head><body>"+html.slice(html.indexOf("</style>")+8)+"</body></html>"); document.close();
+  }catch(err){
+    m.className="msg bad"; m.textContent="That password did not work. Check for typos.";
+    go.disabled=false; $("pw").select();
+  }
+});
+</script>
+</body>
+</html>
